@@ -1,92 +1,157 @@
-from opcua import Client, ua
-import pandas as pd
+from opcua import Client
+import tkinter as tk
+from tkinter import ttk
+from tkinter import filedialog
+from tkinter import messagebox
+import csv
+from datetime import datetime
 
-def read_csv(csv_datei):
-    """Liest eine CSV-Datei ein und gibt die Daten zurück."""
-    try:
-        daten = pd.read_csv(csv_datei)
-        return daten
-    except FileNotFoundError:
-        print(f"Die Datei '{csv_datei}' wurde nicht gefunden.")
-        return None
-    except pd.errors.EmptyDataError:
-        print(f"Die Datei '{csv_datei}' ist leer.")
-        return None
-    except Exception as e:
-        print(f"Fehler beim Lesen der CSV-Datei: {e}")
-        return None
-
-def write_SPS(client, variable, value_array, value_type):
-    """Schreibt einen Wert in eine SPS-Variable."""
-    try:
-        node_id = f'ns=3;s="Messpunkte_DB"."{variable}"'
-        node = client.get_node(node_id)
-        
-        if value_type == ua.VariantType.Int16:
-            value_array = value_array.astype(int)
-        
-        new_value = ua.DataValue(ua.Variant(value_array.tolist(), value_type))
-        node.set_value(new_value)
-        print(f"Wert von '{variable}' gesetzt auf: {new_value.Value}")
-    except Exception as e:
-        print(f"Fehler beim Schreiben in die SPS-Variable '{variable}': {e}")
-
-def read_SPS(client, variable):
-    """Liest den Wert einer SPS-Variable."""
-    try:
-        node_id = f'ns=3;s="Messpunkte_DB"."{variable}"'
-        node = client.get_node(node_id)
-        current_value = node.get_value()
-        print(f"Aktueller Wert von '{variable}': {current_value}")
-        return current_value
-    except Exception as e:
-        print(f"Fehler beim Lesen der SPS-Variable '{variable}': {e}")
-        return None
-
-# Die Adresse der OPC-UA-Server-URL
+# URL des OPC UA Servers
 url = "opc.tcp://192.168.0.1:4840"
 
-# Erstelle eine OPC-UA-Client-Instanz
+# GUI Setup
+root = tk.Tk()
+root.title("OPC UA Daten")
+
+# Frame für Treeview und Scrollbars
+frame = tk.Frame(root)
+frame.pack(expand=True, fill='both')
+
+# Erstelle eine Tabelle (Treeview) mit zusätzlichen Spalten
+columns = ["SeqNo", "Datum/Uhrzeit", "Drehzahl", "Drehmoment", "Mechanische Leistung", "Strom", "Spannung", "Elektrische Leistung", "eta", "Temperatur", "DC Strom", "DC Spannung"]
+tree = ttk.Treeview(frame, columns=columns, show='headings', height=20)
+
+# Definiere die Spaltenüberschriften
+for col in columns:
+    tree.heading(col, text=col)
+    tree.column(col, width=150)
+
+# Erstelle Scrollbars
+vsb = ttk.Scrollbar(frame, orient="vertical", command=tree.yview)
+hsb = ttk.Scrollbar(frame, orient="horizontal", command=tree.xview)
+
+tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+
+# Packe Treeview und Scrollbars
+tree.grid(row=0, column=0, sticky='nsew')
+vsb.grid(row=0, column=1, sticky='ns')
+hsb.grid(row=1, column=0, sticky='ew')
+
+# Konfiguriere das Grid-System
+frame.grid_rowconfigure(0, weight=1)
+frame.grid_columnconfigure(0, weight=1)
+
+# Steuerung für Datenlogging
+logging = False
+data_log = []
+seq_no = 0  # Sequenznummer initialisieren
+
+def start_logging():
+    global logging, data_log, seq_no
+    logging = True
+    data_log = []  # Leere die Protokollliste
+    seq_no = 0  # Setze die Sequenznummer zurück
+    log_button.config(text="Stop Logging")
+    tree.delete(*tree.get_children())  # Lösche alle Einträge in der Tabelle
+    print("Data logging started")
+
+def stop_logging():
+    global logging
+    logging = False
+    log_button.config(text="Start Logging")
+    print("Data logging stopped")
+    save_to_csv()
+
+def save_to_csv():
+    if not data_log:
+        messagebox.showinfo("Info", "No data to save.")
+        return
+    
+    # Standard-Dateiname basierend auf Datum und Uhrzeit
+    default_filename = datetime.now().strftime("opcua_data_log_%Y%m%d_%H%M%S.csv")
+    
+    # Dateiauswahl-Dialog zum Speichern der CSV-Datei
+    filename = filedialog.asksaveasfilename(defaultextension=".csv", initialfile=default_filename, filetypes=[("CSV files", "*.csv"), ("All files", "*.*")], title="Save CSV file")
+    if not filename:
+        return  # Benutzer hat den Dialog abgebrochen
+
+    with open(filename, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(columns)  # Header row
+        writer.writerows(data_log)  # Data rows
+    messagebox.showinfo("Info", f"Data saved to {filename}")
+    print(f"Data saved to {filename}")
+
+# Button zum Starten und Stoppen des Datenloggings
+log_button = tk.Button(root, text="Start Logging", command=lambda: start_logging() if not logging else stop_logging())
+log_button.pack(pady=10)
+
+# Verbindung zum OPC UA Server herstellen
 client = Client(url)
+previous_data_values = None  # Initialisiere die globale Variable
 
 try:
-    # Verbinde dich mit dem OPC-UA-Server
     client.connect()
-    print("Mit OPC-UA-Server verbunden\n")
+    print("Connected to OPC-UA server\n")
 
-    print("SPS Auslesen:")
-    read_SPS(client, "index")
-    read_SPS(client, "drehmoment")
-    read_SPS(client, "drehzahl")
-    print("SPS auslesen beendet\n")
-    
-    # CSV Auslesen und Spalten in Array speichern
-    daten = read_csv('daten.csv')
-    if daten is not None:
-        print("SPS schreiben:")
-        # Array aus CSV erzeugen und in SPS übertragen
-        index_array = daten['index'].values
-        print('CSV Index:', index_array)
-        write_SPS(client, "index", index_array, ua.VariantType.Int16)
-        
-        drehzahl_array = daten['drehzahl'].values
-        print('CSV Drehzahl:', drehzahl_array)
-        write_SPS(client, "drehzahl", drehzahl_array, ua.VariantType.Float)
-        
-        drehmoment_array = daten['drehmoment'].values
-        print('CSV Drehmoment:', drehmoment_array)
-        write_SPS(client, "drehmoment", drehmoment_array, ua.VariantType.Float)
-        print("SPS schreiben beendet\n")
-    else:
-        print("SPS-Schreiben wurde übersprungen, da CSV-Daten nicht verfügbar sind.")
+    # Funktion zum Auslesen der Daten
+    def read_data_array():
+        # Lese die Daten aus dem OPC UA-Server
+        data_nodes = {
+            "Drehzahl": 'ns=3;s="DataLogging_DB"."Data"."n"',
+            "Drehmoment": 'ns=3;s="DataLogging_DB"."Data"."M"',
+            "Mechanische Leistung": 'ns=3;s="DataLogging_DB"."Data"."Pmech"',
+            "Strom": 'ns=3;s="DataLogging_DB"."Data"."I"',
+            "Spannung": 'ns=3;s="DataLogging_DB"."Data"."U"',
+            "Elektrische Leistung": 'ns=3;s="DataLogging_DB"."Data"."Pauf"',
+            "eta": 'ns=3;s="DataLogging_DB"."Data"."eta"',
+            "Temperatur": 'ns=3;s="DataLogging_DB"."Data"."Temperatur"',
+            "DC Strom": 'ns=3;s="DataLogging_DB"."Data"."I_R_mess"',
+            "DC Spannung": 'ns=3;s="DataLogging_DB"."Data"."U_R_mess"'
+        }
+        data = []
+        for key in columns[2:]:  # Die Daten beginnen ab der 3. Spalte
+            node_id = data_nodes[key]
+            data_node = client.get_node(node_id)
+            value = data_node.get_value()
+            data.append(value)
+        return data
 
-except Exception as e:
-    print(f"Fehler während der OPC-UA-Kommunikation: {e}")
+    # Update GUI mit den neuen Daten
+    def update_gui():
+        global previous_data_values, data_log, seq_no
+        current_data_values = read_data_array()
+
+        # Überprüfen, ob sich die Werte geändert haben
+        if previous_data_values is None or current_data_values != previous_data_values:
+            print("Datenänderung erkannt!")
+            
+            # 0.1 Sekunden warten, um sicherzustellen, dass alle Daten richtig sind
+            root.after(100, process_data, current_data_values)
+        
+        # Wiederhole die Überprüfung nach einer Sekunde
+        root.after(1000, update_gui)
+
+    def process_data(current_data_values):
+        global previous_data_values, data_log, seq_no
+        
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        row_data = [seq_no, timestamp] + current_data_values
+        tree.insert("", "end", values=row_data)
+
+        # Daten zur Protokolldatei hinzufügen, falls Logging aktiviert ist
+        if logging:
+            data_log.append(row_data)
+            seq_no += 1  # Erhöhe die Sequenznummer
+        
+        # Update die vorherigen Werte
+        previous_data_values = current_data_values
+
+    # Starte die GUI
+    update_gui()
+    root.mainloop()
 
 finally:
-    # Trenne die Verbindung zum OPC-UA-Server
-    try:
-        client.disconnect()
-        print("Verbindung zum OPC-UA-Server getrennt")
-    except Exception as e:
-        print(f"Fehler beim Trennen der Verbindung: {e}")
+    # Verbindung trennen
+    client.disconnect()
+    print("Disconnected from OPC-UA server")
