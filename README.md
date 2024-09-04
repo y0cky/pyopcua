@@ -1,6 +1,6 @@
 # Prüfstand-Management-System für Elektrische Maschinen
 
-Dieses Repository enthält drei Programme zur Verwaltung und Auswertung von Arbeitspunkten auf einem Prüfstand für das Ausmessen elektrischer Maschinen. Die Programme sind als ausführbare `.exe`-Dateien im Abschnitt [Releases](https://github.com/benutzername/repositoryname/releases) verfügbar.
+Dieses Repository enthält drei Programme zur Verwaltung und Auswertung von Arbeitspunkten auf einem Prüfstand für das Ausmessen elektrischer Maschinen. Die Programme stehen als ausführbare `.exe`-Dateien im Abschnitt [Releases](https://github.com/y0cky/pyopcua/releases) zur Verfügung.
 
 ## Programme
 
@@ -16,19 +16,19 @@ Die Programme sind als ausführbare `.exe`-Dateien verfügbar. Folge diesen Schr
 
 ### 1. Arbeitspunktgenerator
 
-- Gehe zu [Releases](https://github.com/benutzername/repositoryname/releases).
+- Gehe zu [Releases](https://github.com/y0cky/pyopcua/releases).
 - Lade die `.exe`-Datei für den Arbeitspunktgenerator herunter.
 - Führe die heruntergeladene Datei aus und folge den Installationsanweisungen.
 
 ### 2. UploadCSV
 
-- Gehe zu [Releases](https://github.com/benutzername/repositoryname/releases).
+- Gehe zu [Releases](https://github.com/y0cky/pyopcua/releases).
 - Lade die `.exe`-Datei für UploadCSV herunter.
 - Führe die heruntergeladene Datei aus und folge den Installationsanweisungen.
 
 ### 3. ReadOPCUA
 
-- Gehe zu [Releases](https://github.com/benutzername/repositoryname/releases).
+- Gehe zu [Releases](https://github.com/y0cky/pyopcua/releases).
 - Lade die `.exe`-Datei für ReadOPCUA herunter.
 - Führe die heruntergeladene Datei aus und folge den Installationsanweisungen.
 
